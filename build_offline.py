@@ -99,7 +99,35 @@ def main():
             encoding="utf-8")
     else:
         sh = pkg / "start.sh"
-        sh.write_text(f'#!/usr/bin/env bash\ncd "$(dirname "$0")"\nexec {py_cmd} run.py\n')
+        sh.write_text(f'''#!/usr/bin/env bash
+# 用法: ./start.sh          前台启动（Ctrl+C 停止）
+#       ./start.sh -d       后台启动（日志写 app.log，PID 写 app.pid）
+#       ./start.sh stop     停止后台实例
+cd "$(dirname "$0")"
+PID_FILE=app.pid
+LOG_FILE=app.log
+
+case "${{1:-}}" in
+  -d|--daemon)
+    if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
+      echo "已在运行 (PID $(cat "$PID_FILE"))"; exit 1
+    fi
+    nohup {py_cmd} run.py >> "$LOG_FILE" 2>&1 &
+    echo $! > "$PID_FILE"
+    echo "已后台启动 (PID $(cat "$PID_FILE"))，日志: $LOG_FILE"
+    ;;
+  stop)
+    if [ -f "$PID_FILE" ]; then
+      kill "$(cat "$PID_FILE")" 2>/dev/null && rm -f "$PID_FILE" && echo "已停止"
+    else
+      echo "未找到 $PID_FILE，服务可能未在后台运行"
+    fi
+    ;;
+  *)
+    exec {py_cmd} run.py
+    ;;
+esac
+''')
         sh.chmod(0o755)
 
     (pkg / "README-部署.txt").write_text(f"""\
@@ -112,7 +140,9 @@ def main():
    - NACOS_REGISTER_IP   多网卡/需要注册特定 IP 时显式填写，留空自动探测
 3. 启动：
    Windows: 双击 start.bat
-   Linux:   ./start.sh
+   Linux:   ./start.sh           前台启动（调试用）
+            ./start.sh -d        后台启动（日志 app.log，PID app.pid）
+            ./start.sh stop      停止后台实例
 4. 验证：curl http://127.0.0.1:<APP_PORT>/alive
 
 守护进程建议：Windows 用 NSSM 注册为服务；Linux 用 systemd 托管 start.sh。
