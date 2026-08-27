@@ -1,0 +1,2 @@
+# shell 脚本必须保持 LF，否则 Windows 签出的 CRLF 会让 Linux bash 报错
+*.sh text eol=lf
