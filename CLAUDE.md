@@ -8,6 +8,8 @@
 
 - `uv sync` — 按 `uv.lock` 安装依赖
 - `python run.py` — 启动开发服务（host/port/reload 均取自 `settings`）
+- `python build_offline.py` — 构建 Windows 离线部署包（见下文「离线部署」）
+- `bash build_linux.sh` — 用 Docker 构建 Linux 离线部署包
 - `test_main.http` — JetBrains HTTP Client 手工测试文件（端口跟随 `.env`）
 
 目前未配置测试框架和 linter。
@@ -33,3 +35,15 @@ FastAPI + Nacos 服务发现的微服务骨架，跨文件才能看清的设计�
 - **统一返回体**：JSON 接口一律返回 `HttpResult.ok(...)` / `HttpResult.fail(...)`（`app/models/response.py`）。`main.py` 有全局异常处理器，未捕获异常兜底为 `HttpResult` 500。
 - **日志**：用标准 `logging`（`main.py` 里 basicConfig），不要 `print`。
 - `app/api/`、`app/services/` 目前是空包，新增路由建议在 `api/` 下用 APIRouter 组织，在 `main.py` 挂载。
+
+## 离线部署（build_offline.py）
+
+目标机零安装、无外网：包 = 独立解释器 + 已装好的依赖 + 代码 + `.env`（由 `.env.example` 复制生成）。Windows 包本机直出，Linux 包用 Docker（`python:3.12-slim` 容器跑同一份脚本，产出的 wheel 自然是 Linux 版）。
+
+关键设计（都是踩过的坑，勿回退）：
+
+- **不搬运 .venv**（pyvenv.cfg 绑死构建机路径），而是拷贝 `sys.base_prefix` 指向的独立解释器，依赖直接装进它的 site-packages
+- 删除解释器里的 `EXTERNALLY-MANAGED` 标记，否则 pip 拒绝安装
+- `alibabacloud-*` 系列依赖只有 sdist，必须先 `pip wheel` 转 wheel 才能 `--no-index` 离线安装
+- 安装用 `--no-hashes` 的 requirements（自建 wheel 与 sdist 哈希对不上）；完整性由 wheel 构建期的 hash 校验保证
+- 启动脚本统一跑 `run.py`，端口只认 `.env`；Linux 包基于 Debian 12 运行时，目标机需兼容的 glibc
