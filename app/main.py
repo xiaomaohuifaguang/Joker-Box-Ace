@@ -2,7 +2,7 @@ import logging
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -43,6 +43,12 @@ async def index(request: Request):
         name="index.html",
         context={"message": "Hello from FastAPI + Jinja2"},
     )
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    # 浏览器不管页面怎么声明都会默认请求 /favicon.ico，重定向到真实位置
+    return RedirectResponse("/static/favicon.ico")
 
 
 @app.get("/alive")
