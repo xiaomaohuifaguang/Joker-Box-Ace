@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     NACOS_USERNAME: str = "nacos"
     NACOS_PASSWORD: str = "nacos"
     NACOS_SERVICE_NAME: str = ""       # 留空时在业务侧回退到 APP_NAME
+    NACOS_REGISTER_IP: str = ""        # 留空时自动探测本机局域网 IP；容器/多网卡环境必须显式指定
 
 
 # 全局单例 —— 所有模块 import 这一个对象

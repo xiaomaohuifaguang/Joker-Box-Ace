@@ -27,6 +27,9 @@ FastAPI + Nacos 服务发现的微服务骨架，跨文件才能看清的设计�
 - **生命周期总入口是 `app/nacos_registry.py` 的 `lifespan()`**，`NACOS_ENABLED` 开关在这里生效。新增生命周期资源（数据库连接池等）必须嵌套进这个函数，不要直接改 `main.py` 的 `lifespan=` 参数。
 - **注册容错设计**：注册在后台 asyncio 任务里跑，不阻塞启动；失败重试 3 次后只记日志，服务继续运行；注册时的 IP 存 `app.state.nacos_ip`，注销必须用同一个 IP。
 - **服务名**：注册名走 `NACOS_SERVICE_NAME`，留空回退 `APP_NAME`（见 `_service_name()`），不要在别处拼接。
+- **注册 IP**：`_register_ip()` 优先读 `NACOS_REGISTER_IP`（容器/多网卡环境必须显式配成外部可达 IP），留空才自动探测；探测结果存 `app.state.nacos_ip`，注销必须用同一个。
+- **端口单一来源**：监听端口和注册端口都必须是 `settings.APP_PORT`。启动一律走 `python run.py`（或等效地不传 `--port` 的 uvicorn 调用），**禁止在命令行/部署脚本里硬编码端口**，否则注册信息与实际监听不一致。
+- **单进程运行**：不要用 uvicorn `--workers > 1`。多 worker 会重复注册同一个 `IP:端口` 实例、生命周期互相打架；扩容量靠多跑进程/容器，由 Nacos 做负载均衡和故障摘除。
 - **统一返回体**：JSON 接口一律返回 `HttpResult.ok(...)` / `HttpResult.fail(...)`（`app/models/response.py`）。`main.py` 有全局异常处理器，未捕获异常兜底为 `HttpResult` 500。
 - **日志**：用标准 `logging`（`main.py` 里 basicConfig），不要 `print`。
 - `app/api/`、`app/services/` 目前是空包，新增路由建议在 `api/` 下用 APIRouter 组织，在 `main.py` 挂载。

@@ -38,6 +38,11 @@ def _service_name() -> str:
     return settings.NACOS_SERVICE_NAME or settings.APP_NAME
 
 
+def _register_ip() -> str:
+    """注册的 IP：优先用显式配置（容器/多网卡环境必须配），留空才自动探测"""
+    return settings.NACOS_REGISTER_IP or _local_ip()
+
+
 @asynccontextmanager
 async def register_to_nacos(app: FastAPI):
     """注册放到后台任务：不阻塞服务启动；失败只记日志不影响服务；关闭时确保注销"""
@@ -58,7 +63,7 @@ async def register_to_nacos(app: FastAPI):
                 naming_client = await NacosNamingService.create_naming_service(client_config)
                 app.state.nacos_client = naming_client      # ← 存到 state，关闭时要用来注销
 
-                app_ip = _local_ip()
+                app_ip = _register_ip()
                 app.state.nacos_ip = app_ip                 # ← 注销时用同一个 IP，防止网络变化注销错实例
                 await naming_client.register_instance(request=RegisterInstanceParam(
                     service_name=_service_name(),
