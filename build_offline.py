@@ -37,6 +37,98 @@ def run(cmd: list[str], **kw):
     subprocess.run([str(c) for c in cmd], check=True, **kw)
 
 
+def write_linux_scripts(pkg: Path, py_cmd: str):
+    """生成 Linux 运维脚本：start/stop/restart/status + systemd 单元模板"""
+    scripts = {
+        # 默认后台启动（对标 Tomcat startup.sh）；-f 前台模式供调试和 systemd 使用
+        "start.sh": f"""#!/usr/bin/env bash
+# 启动服务。用法: ./start.sh          后台启动（默认）
+#                ./start.sh -f       前台启动（调试用，Ctrl+C 停止）
+cd "$(dirname "$0")"
+PID_FILE=app.pid
+LOG_FILE=app.log
+
+if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
+  echo "已在运行 (PID $(cat "$PID_FILE"))"; exit 1
+fi
+
+if [ "${{1:-}}" = "-f" ] || [ "${{1:-}}" = "--foreground" ]; then
+  exec {py_cmd} run.py
+fi
+
+nohup {py_cmd} run.py >> "$LOG_FILE" 2>&1 &
+echo $! > "$PID_FILE"
+echo "已启动 (PID $(cat "$PID_FILE"))，日志: $LOG_FILE"
+""",
+        # 优雅停止优先：TERM 让 lifespan 走完（Nacos 注销靠它），超时再 KILL
+        "stop.sh": """#!/usr/bin/env bash
+# 停止服务（先优雅关闭，15s 超时后强制）
+cd "$(dirname "$0")"
+PID_FILE=app.pid
+
+if [ ! -f "$PID_FILE" ]; then
+  echo "未运行（无 $PID_FILE）"; exit 0
+fi
+PID=$(cat "$PID_FILE")
+if ! kill -0 "$PID" 2>/dev/null; then
+  echo "进程已不存在，清理 $PID_FILE"; rm -f "$PID_FILE"; exit 0
+fi
+
+kill "$PID"
+for _ in $(seq 1 15); do
+  kill -0 "$PID" 2>/dev/null || break
+  sleep 1
+done
+if kill -0 "$PID" 2>/dev/null; then
+  echo "优雅停止超时，强制结束 (kill -9)"; kill -9 "$PID"
+fi
+rm -f "$PID_FILE"
+echo "已停止 (PID $PID)"
+""",
+        "restart.sh": """#!/usr/bin/env bash
+cd "$(dirname "$0")"
+./stop.sh && ./start.sh
+""",
+        # 两层检查：PID 存活 = 进程在；/alive 通 = 服务真活着
+        "status.sh": """#!/usr/bin/env bash
+cd "$(dirname "$0")"
+PID_FILE=app.pid
+
+if [ ! -f "$PID_FILE" ] || ! kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
+  echo "未运行"; exit 1
+fi
+PID=$(cat "$PID_FILE")
+PORT=$(grep -E '^APP_PORT=' .env 2>/dev/null | cut -d= -f2)
+PORT=${PORT:-8000}
+HTTP=$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 "http://127.0.0.1:$PORT/alive")
+echo "进程运行中 (PID $PID)，/alive 探测: HTTP ${HTTP:-不可达}"
+[ "$HTTP" = "200" ]
+""",
+        # systemd 单元模板：有 systemd 的服务器推荐用这个托管
+        "app.service": f"""[Unit]
+Description=Joker Box Ace
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# 部署时把 /opt/joker-box-ace 改成实际解压目录
+WorkingDirectory=/opt/joker-box-ace
+ExecStart=/opt/joker-box-ace/{py_cmd} run.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+""",
+    }
+    for name, content in scripts.items():
+        f = pkg / name
+        f.write_text(content, encoding="utf-8", newline="\n")
+        if name.endswith(".sh"):
+            f.chmod(0o755)
+
+
 def main():
     meta = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
     app_name, version = meta["name"], meta["version"]
@@ -98,37 +190,7 @@ def main():
             f"{py_cmd} run.py\r\npause\r\n",
             encoding="utf-8")
     else:
-        sh = pkg / "start.sh"
-        sh.write_text(f'''#!/usr/bin/env bash
-# 用法: ./start.sh          前台启动（Ctrl+C 停止）
-#       ./start.sh -d       后台启动（日志写 app.log，PID 写 app.pid）
-#       ./start.sh stop     停止后台实例
-cd "$(dirname "$0")"
-PID_FILE=app.pid
-LOG_FILE=app.log
-
-case "${{1:-}}" in
-  -d|--daemon)
-    if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
-      echo "已在运行 (PID $(cat "$PID_FILE"))"; exit 1
-    fi
-    nohup {py_cmd} run.py >> "$LOG_FILE" 2>&1 &
-    echo $! > "$PID_FILE"
-    echo "已后台启动 (PID $(cat "$PID_FILE"))，日志: $LOG_FILE"
-    ;;
-  stop)
-    if [ -f "$PID_FILE" ]; then
-      kill "$(cat "$PID_FILE")" 2>/dev/null && rm -f "$PID_FILE" && echo "已停止"
-    else
-      echo "未找到 $PID_FILE，服务可能未在后台运行"
-    fi
-    ;;
-  *)
-    exec {py_cmd} run.py
-    ;;
-esac
-''')
-        sh.chmod(0o755)
+        write_linux_scripts(pkg, py_cmd)
 
     (pkg / "README-部署.txt").write_text(f"""\
 {app_name} v{version} 离线部署包（{TAG} 专用，不可跨平台）
@@ -140,12 +202,15 @@ esac
    - NACOS_REGISTER_IP   多网卡/需要注册特定 IP 时显式填写，留空自动探测
 3. 启动：
    Windows: 双击 start.bat
-   Linux:   ./start.sh           前台启动（调试用）
-            ./start.sh -d        后台启动（日志 app.log，PID app.pid）
-            ./start.sh stop      停止后台实例
+   Linux:   ./start.sh           后台启动（默认；日志 app.log，PID app.pid）
+            ./start.sh -f        前台启动（调试用）
+            ./stop.sh            停止（优雅关闭，超时强杀）
+            ./restart.sh         重启
+            ./status.sh          查看状态（进程 + /alive 健康检查）
+   有 systemd 的服务器推荐：参考 app.service 用 systemctl 托管
 4. 验证：curl http://127.0.0.1:<APP_PORT>/alive
 
-守护进程建议：Windows 用 NSSM 注册为服务；Linux 用 systemd 托管 start.sh。
+守护进程建议：Windows 用 NSSM 注册为服务；Linux 优先 systemd（app.service）。
 """, encoding="utf-8")
 
     # ── 5. 压缩 ────────────────────────────────────────────────
