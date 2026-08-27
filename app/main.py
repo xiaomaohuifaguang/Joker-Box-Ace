@@ -3,6 +3,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from app.models.response import HttpResult
@@ -17,8 +18,12 @@ logger = logging.getLogger(__name__)
 # 统一走 lifespan 包装器，NACOS_ENABLED 开关在这里生效
 app = FastAPI(title="Joker Box Ace", lifespan=lifespan)
 
-TEMPLATES_DIR = Path(__file__).parent / "templates"
+APP_DIR = Path(__file__).parent
+TEMPLATES_DIR = APP_DIR / "templates"
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+
+# 静态资源（tailwind/daisyui 等全部本地化，内网无外网也能跑）
+app.mount("/static", StaticFiles(directory=str(APP_DIR / "static")), name="static")
 
 
 @app.exception_handler(Exception)

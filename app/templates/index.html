@@ -1,18 +1,22 @@
-<!DOCTYPE html>
-<html lang="zh">
-<head>
-    <meta charset="UTF-8">
-    <title>Joker Box Ace</title>
-</head>
-<body>
-    <h1>🃏 Joker Box Ace</h1>
-    <p>{{ message }}</p>
+{% extends "layouts/base.html" %}
 
-    <!-- 预留：点击按钮调后端接口 -->
-    <button onclick="fetch('/hello/hello')
-                       .then(r => r.json())
-                       .then(d => alert(d.message))">
-        调用接口测试
-    </button>
-</body>
-</html>
+{% block content %}
+<div class="card bg-base-100 shadow-xl max-w-md">
+    <div class="card-body">
+        <h2 class="card-title">{{ message }}</h2>
+        <p>FastAPI + Jinja2 + daisyUI，静态资源全本地化，内网可跑。</p>
+        <div class="card-actions justify-end">
+            <button class="btn btn-primary" onclick="checkAlive()">调用 /alive</button>
+        </div>
+        <p id="alive-result" class="text-sm text-base-content/60 mt-2"></p>
+    </div>
+</div>
+
+<script>
+async function checkAlive() {
+    const el = document.getElementById('alive-result');
+    const d = await (await fetch('/alive')).json();
+    el.textContent = `code=${d.code} msg=${d.msg}`;
+}
+</script>
+{% endblock %}

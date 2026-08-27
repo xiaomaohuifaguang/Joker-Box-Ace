@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Joker Box Ace{% endblock %}</title>
+
+    {# 主题要在样式加载前应用，避免刷新时主题闪烁 #}
+    <script>
+        document.documentElement.dataset.theme =
+            localStorage.getItem('theme') || 'light';
+    </script>
+
+    {# 加载顺序不能乱：daisyUI 先就位，Tailwind 浏览器 JIT 最后跑 #}
+    <link rel="stylesheet" href="/static/vendor/daisyui.css">
+    <link rel="stylesheet" href="/static/vendor/daisyui-themes.css">
+    <link rel="stylesheet" href="/static/css/app.css">
+    <script src="/static/vendor/tailwind.browser.js"></script>
+</head>
+<body class="min-h-screen bg-base-200">
+    <div class="navbar bg-base-100 shadow-sm">
+        <div class="flex-1">
+            <a href="/" class="btn btn-ghost text-xl">🃏 Joker Box Ace</a>
+        </div>
+        <div class="flex-none">
+            {% block navbar_extra %}{% endblock %}
+            <select id="theme-select" class="select select-bordered select-sm w-28"
+                    onchange="document.documentElement.dataset.theme=this.value;localStorage.setItem('theme',this.value)">
+                <option value="light">🌞 light</option>
+                <option value="dark">🌙 dark</option>
+                <option value="cupcake">🧁 cupcake</option>
+                <option value="corporate">🏢 corporate</option>
+                <option value="synthwave">🌆 synthwave</option>
+                <option value="dracula">🧛 dracula</option>
+            </select>
+        </div>
+    </div>
+
+    <main class="container mx-auto p-6">
+        {% block content %}{% endblock %}
+    </main>
+
+    <script>
+        // 页面加载后同步主题下拉框的选中值
+        document.getElementById('theme-select').value = document.documentElement.dataset.theme;
+    </script>
+    <script src="/static/js/app.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

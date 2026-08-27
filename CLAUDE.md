@@ -36,6 +36,15 @@ FastAPI + Nacos 服务发现的微服务骨架，跨文件才能看清的设计�
 - **日志**：用标准 `logging`（`main.py` 里 basicConfig），不要 `print`。
 - `app/api/`、`app/services/` 目前是空包，新增路由建议在 `api/` 下用 APIRouter 组织，在 `main.py` 挂载。
 
+## 前端 UI
+
+路线：**Jinja2 服务端渲染 + Tailwind v4 浏览器版 + daisyUI 5**，全部静态资源本地化（内网无外网，不用 CDN），不引入 Node 构建链。
+
+- `app/static/vendor/` 放第三方库整文件（升级就整文件替换），自有代码在 `css/`、`js/`
+- 所有页面继承 `templates/layouts/base.html`；**加载顺序不能乱**：daisyui.css → daisyui-themes.css → tailwind.browser.js
+- 主题用 `<html data-theme>` + localStorage，切换器在 base.html 导航栏；主题必须在样式加载前应用（head 顶部内联脚本），否则刷新闪主题
+- Tailwind 浏览器版是开发向的（每页实时编译）；以后要优化首屏，换 Tailwind standalone CLI 构建期出 CSS，仍不需要 Node
+
 ## 离线部署（build_offline.py）
 
 目标机零安装、无外网：包 = 独立解释器 + 已装好的依赖 + 代码 + `.env`（由 `.env.example` 复制生成）。Windows 包本机直出，Linux 包用 Docker（`python:3.12-slim` 容器跑同一份脚本，产出的 wheel 自然是 Linux 版）。
