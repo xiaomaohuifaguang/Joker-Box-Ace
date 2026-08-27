@@ -1,0 +1,59 @@
+# ========== 环境变量 / 机密信息（最重要，绝不能提交）==========
+.env
+.env.*
+!.env.example          # 允许提交配置模板，里面只放 key 不放真实值
+
+# ========== Python 运行时 ==========
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# 分布/打包
+build/
+dist/
+*.egg-info/
+*.egg
+MANIFEST
+
+# ========== 虚拟环境 ==========
+.venv/
+venv/
+env/
+ENV/
+
+# ========== IDE ==========
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ========== 测试 / 覆盖率 ==========
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+
+# ========== 类型检查 / Lint 缓存 ==========
+.mypy_cache/
+.ruff_cache/
+.pytype/
+
+# ========== 日志 ==========
+*.log
+logs/
+
+# ========== 数据库 / 本地数据 ==========
+*.db
+*.sqlite3
+
+# ========== 操作系统 ==========
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ========== Jupyter（如果用到）==========
+.ipynb_checkpoints/
