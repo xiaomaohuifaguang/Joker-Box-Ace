@@ -8,7 +8,6 @@
 
 - `uv sync` — 按 `uv.lock` 安装依赖
 - `python run.py` — 启动开发服务（host/port/reload 均取自 `settings`）
-- `python build_offline.py` — 构建离线部署包：把解释器、`.venv`、代码打进 `dist/` 并生成平台专用启动脚本（**包不可跨平台使用**；版本号读自 `pyproject.toml`，启动端口读自 `settings.APP_PORT`）
 - `test_main.http` — JetBrains HTTP Client 手工测试文件（端口跟随 `.env`）
 
 目前未配置测试框架和 linter。
