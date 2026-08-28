@@ -13,7 +13,7 @@
             <table class="table table-zebra">
                 <thead>
                     <tr>
-                        <th>ID</th><th>名称</th><th>Key 前缀</th><th>状态</th>
+                        <th>ID</th><th>名称</th><th>描述</th><th>Key</th><th>状态</th>
                         <th>过期时间</th><th>最近使用</th><th>创建时间</th><th>操作</th>
                     </tr>
                 </thead>
@@ -28,28 +28,28 @@
     <div class="modal-box">
         <h3 class="font-bold text-lg mb-4">新建 API-Key</h3>
         <form onsubmit="return doCreate(event)">
-            <input type="text" id="key-name" class="input input-bordered w-full mb-4"
-                   placeholder="用途备注（如：给报表系统）" maxlength="64" required>
+            <label class="block text-sm mb-1">名称 <span class="text-error">*</span></label>
+            <input type="text" id="key-name" class="input input-bordered w-full mb-3"
+                   placeholder="如：报表系统" maxlength="64" required>
+
+            <label class="block text-sm mb-1">描述</label>
+            <textarea id="key-desc" class="textarea textarea-bordered w-full mb-3"
+                      placeholder="补充说明（可选）" maxlength="255" rows="2"></textarea>
+
+            <label class="block text-sm mb-1">过期时间</label>
+            <select id="key-expire" class="select select-bordered w-full mb-4">
+                <option value="0" selected>永不过期</option>
+                <option value="7">7 天</option>
+                <option value="30">30 天</option>
+                <option value="90">90 天</option>
+                <option value="365">1 年</option>
+            </select>
+
             <div class="modal-action">
                 <button type="button" class="btn" onclick="create_modal.close()">取消</button>
                 <button type="submit" class="btn btn-primary">创建</button>
             </div>
         </form>
-    </div>
-</dialog>
-
-<!-- 明文展示弹窗（只出现一次） -->
-<dialog id="show_modal" class="modal">
-    <div class="modal-box">
-        <h3 class="font-bold text-lg text-warning mb-2">⚠️ 立即保存，只显示这一次</h3>
-        <p class="text-sm text-base-content/60 mb-3">关闭后将永远无法再次查看完整 key。</p>
-        <div class="join w-full">
-            <input type="text" id="new-key-value" class="input input-bordered join-item w-full font-mono" readonly>
-            <button class="btn btn-primary join-item" onclick="copyKey()">复制</button>
-        </div>
-        <div class="modal-action">
-            <button class="btn" onclick="show_modal.close()">我已保存</button>
-        </div>
     </div>
 </dialog>
 
@@ -61,17 +61,25 @@ async function loadKeys() {
         <tr>
             <td>${k.id}</td>
             <td>${esc(k.name)}</td>
-            <td class="font-mono">${esc(k.key_prefix)}…</td>
+            <td class="max-w-48 truncate" title="${esc(k.description || '')}">${esc(k.description || '—')}</td>
+            <td>
+                <div class="join">
+                    <input class="input input-bordered input-xs join-item font-mono w-64"
+                           value="${esc(k.key)}" readonly>
+                    <button class="btn btn-xs join-item" onclick="copyKey(this, '${esc(k.key)}')">复制</button>
+                </div>
+            </td>
             <td>${k.enabled
                 ? '<span class="badge badge-success badge-sm">启用</span>'
                 : '<span class="badge badge-ghost badge-sm">已吊销</span>'}</td>
-            <td>${fmt(k.expires_at)}</td>
+            <td>${k.expires_at ? fmt(k.expires_at) : '永不过期'}</td>
             <td>${fmt(k.last_used_at)}</td>
             <td>${fmt(k.created_at)}</td>
-            <td>${k.enabled
-                ? `<button class="btn btn-error btn-xs" onclick="revoke(${k.id})">吊销</button>`
-                : ''}</td>
-        </tr>`).join('') || '<tr><td colspan="8" class="text-center text-base-content/50">暂无 API-Key</td></tr>';
+            <td class="whitespace-nowrap">
+                ${k.enabled ? `<button class="btn btn-warning btn-xs" onclick="revoke(${k.id})">吊销</button>` : ''}
+                <button class="btn btn-error btn-xs" onclick="del(${k.id}, '${esc(k.name)}')">删除</button>
+            </td>
+        </tr>`).join('') || '<tr><td colspan="9" class="text-center text-base-content/50">暂无 API-Key</td></tr>';
 }
 
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -79,16 +87,20 @@ const fmt = s => s ? new Date(s).toLocaleString() : '—';
 
 async function doCreate(e) {
     e.preventDefault();
+    const days = parseInt(document.getElementById('key-expire').value);
     const resp = await (await fetch('/api/keys', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({name: document.getElementById('key-name').value}),
+        body: JSON.stringify({
+            name: document.getElementById('key-name').value,
+            description: document.getElementById('key-desc').value || null,
+            expires_in_days: days || null,
+        }),
     })).json();
     if (resp.code === 200) {
         create_modal.close();
         document.getElementById('key-name').value = '';
-        document.getElementById('new-key-value').value = resp.data.key;
-        show_modal.showModal();
+        document.getElementById('key-desc').value = '';
         loadKeys();
     } else {
         alert(resp.msg);
@@ -97,14 +109,24 @@ async function doCreate(e) {
 }
 
 async function revoke(id) {
-    if (!confirm('吊销后使用该 key 的调用会立即失效，确认？')) return;
+    if (!confirm('吊销后使用该 key 的调用会立即失效（记录保留），确认？')) return;
     const resp = await (await fetch(`/api/keys/${id}/revoke`, {method: 'POST'})).json();
     if (resp.code !== 200) alert(resp.msg);
     loadKeys();
 }
 
-async function copyKey() {
-    await navigator.clipboard.writeText(document.getElementById('new-key-value').value);
+async function del(id, name) {
+    if (!confirm(`彻底删除 key「${name}」？记录将不可恢复。`)) return;
+    const resp = await (await fetch(`/api/keys/${id}`, {method: 'DELETE'})).json();
+    if (resp.code !== 200) alert(resp.msg);
+    loadKeys();
+}
+
+async function copyKey(btn, key) {
+    await navigator.clipboard.writeText(key);
+    const old = btn.textContent;
+    btn.textContent = '✓';
+    setTimeout(() => btn.textContent = old, 1000);
 }
 
 loadKeys();

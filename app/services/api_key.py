@@ -19,16 +19,17 @@ def _hash(key: str) -> str:
     return hashlib.sha256(key.encode()).hexdigest()
 
 
-async def create_key(name: str, expires_at: datetime | None = None) -> tuple[ApiKey, str]:
-    """生成新 key。返回 (记录, 明文 key)——明文只在此刻返回一次，之后无法找回！"""
+async def create_key(name: str, description: str | None = None,
+                     expires_at: datetime | None = None) -> ApiKey:
+    """生成新 key（明文入库可回显，内网工具的取舍）"""
     plain = KEY_PREFIX + secrets.token_urlsafe(32)
-    record = ApiKey(name=name, key_hash=_hash(plain), key_prefix=plain[:12],
-                    expires_at=expires_at)
+    record = ApiKey(name=name, description=description, key_value=plain,
+                    key_hash=_hash(plain), expires_at=expires_at)
     async with SessionLocal() as session:
         session.add(record)
         await session.commit()
         await session.refresh(record)
-    return record, plain
+    return record
 
 
 async def verify_key(key: str) -> str | None:
@@ -63,5 +64,16 @@ async def revoke_key(key_id: int) -> bool:
         if row is None:
             return False
         row.enabled = False
+        await session.commit()
+        return True
+
+
+async def delete_key(key_id: int) -> bool:
+    """删除（硬删除：彻底移除记录）"""
+    async with SessionLocal() as session:
+        row = await session.get(ApiKey, key_id)
+        if row is None:
+            return False
+        await session.delete(row)
         await session.commit()
         return True
