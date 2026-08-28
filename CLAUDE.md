@@ -36,6 +36,15 @@ FastAPI + Nacos 服务发现的微服务骨架，跨文件才能看清的设计�
 - **日志**：用标准 `logging`（`main.py` 里 basicConfig），不要 `print`。
 - `app/api/`、`app/services/` 目前是空包，新增路由建议在 `api/` 下用 APIRouter 组织，在 `main.py` 挂载。
 
+## 路由分层
+
+`main.py` 只做装配（建 app、挂静态目录、异常处理、include 路由），**不写任何路由**：
+
+- **页面**（返回 HTML）→ `app/pages.py`
+- **JSON 接口**（返回 `HttpResult`）→ `app/api/` 下按领域拆模块，统一在 `app/api/router.py` 汇总 include
+- **系统路由**（`/alive`、`/favicon.ico`）→ `app/api/system.py`，路径必须保持稳定（外部监控/探针依赖），不加业务前缀
+- 路由层只收参、调 `services/`、包返回体，不写业务逻辑
+
 ## 前端 UI
 
 路线：**Jinja2 服务端渲染 + Tailwind v4 浏览器版 + daisyUI 5**，全部静态资源本地化（内网无外网，不用 CDN），不引入 Node 构建链。
