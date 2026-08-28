@@ -78,6 +78,16 @@ FastAPI + Nacos 服务发现的微服务骨架，跨文件才能看清的设计�
 - 安装用 `--no-hashes` 的 requirements（自建 wheel 与 sdist 哈希对不上）；完整性由 wheel 构建期的 hash 校验保证
 - 启动脚本统一跑 `run.py`，端口只认 `.env`；Linux 包基于 Debian 12 运行时，目标机需兼容的 glibc
 
+## Docker 部署
+
+`bash build_docker.sh` —— 构建镜像（`joker-box-ace:<version>`，版本读 pyproject.toml）并导出离线包到 `dist/*-docker.tar.gz`。本地与 Jenkins（DooD）通用：docker build 上下文由客户端打包发送，`-v` 才需要宿主路径。
+
+- 目标机：`gunzip -c xxx.tar.gz | docker load`，然后 `docker compose up -d`（compose 非必需，`docker run` 也行）
+- **必须传 `NACOS_REGISTER_IP`=宿主机 IP**（compose 里强制校验），否则注册的是容器内网 IP，外部调不通
+- 镜像内置 `TZ=Asia/Shanghai` + tzdata（库存本地时间，少了 tzdata 设 ENV 无效）
+- 配置注入走 `--env-file .env` / compose `env_file`；`.env` 已被 .dockerignore 排除，不进镜像
+- SQLite 模式挂 `./data:/app/data` 持久化；MySQL 模式不需要卷
+
 ## 数据库
 
 SQLAlchemy 2.x async（`app/core/db.py`），生命周期嵌在 `lifespan()` 里。**内置/远程切换只换连接 URL，业务代码不动**：

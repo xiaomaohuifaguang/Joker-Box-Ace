@@ -1,0 +1,18 @@
+# 便捷方式，非必需——单容器 docker run 也完全可以（见 README 级用法在 build_docker.sh 注释）
+# 用法: docker compose up -d
+# 变量来自同目录 .env（compose 自动读取做替换，env_file 再注入容器）
+services:
+  joker-box-ace:
+    build: .
+    image: joker-box-ace:${APP_VERSION:-latest}
+    container_name: joker-box-ace
+    env_file: .env
+    environment:
+      # 容器 IP 外部不可达，注册 Nacos 必须显式传宿主机可达 IP
+      - NACOS_REGISTER_IP=${NACOS_REGISTER_IP:?请在 .env 配置 NACOS_REGISTER_IP 为宿主机 IP}
+    ports:
+      - "${APP_PORT:-8000}:${APP_PORT:-8000}"
+    volumes:
+      # SQLite 模式的数据目录持久化；用 MySQL 远程库时可删除此行
+      - ./data:/app/data
+    restart: unless-stopped
