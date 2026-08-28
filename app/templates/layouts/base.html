@@ -19,11 +19,12 @@
     <script src="/static/vendor/tailwind.browser.js"></script>
 </head>
 <body class="min-h-screen bg-base-200">
+    {% block navbar %}
     <div class="navbar bg-base-100 shadow-sm">
         <div class="flex-1">
             <a href="/" class="btn btn-ghost text-xl">🃏 Joker Box Ace</a>
         </div>
-        <div class="flex-none">
+        <div class="flex-none gap-2">
             {% block navbar_extra %}{% endblock %}
             <select id="theme-select" class="select select-bordered select-sm w-28"
                     onchange="document.documentElement.dataset.theme=this.value;localStorage.setItem('theme',this.value)">
@@ -34,8 +35,10 @@
                 <option value="synthwave">🌆 synthwave</option>
                 <option value="dracula">🧛 dracula</option>
             </select>
+            <button class="btn btn-ghost btn-sm" onclick="doLogout()">退出登录</button>
         </div>
     </div>
+    {% endblock %}
 
     <main class="container mx-auto p-6">
         {% block content %}{% endblock %}
@@ -43,7 +46,13 @@
 
     <script>
         // 页面加载后同步主题下拉框的选中值
-        document.getElementById('theme-select').value = document.documentElement.dataset.theme;
+        const themeSelect = document.getElementById('theme-select');
+        if (themeSelect) themeSelect.value = document.documentElement.dataset.theme;
+
+        async function doLogout() {
+            await fetch('/api/auth/logout', {method: 'POST'});
+            location.href = '/login';
+        }
     </script>
     <script src="/static/js/app.js"></script>
     {% block scripts %}{% endblock %}
