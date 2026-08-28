@@ -48,6 +48,14 @@ async def verify_key(key: str) -> str | None:
         return row.name
 
 
+async def list_keys() -> list[ApiKey]:
+    """全量列表（管理界面用；key 只有哈希和 prefix，天然脱敏）"""
+    async with SessionLocal() as session:
+        return list((await session.execute(
+            select(ApiKey).order_by(ApiKey.id.desc())
+        )).scalars())
+
+
 async def revoke_key(key_id: int) -> bool:
     """吊销（软删除：置 enabled=False，保留审计痕迹）"""
     async with SessionLocal() as session:

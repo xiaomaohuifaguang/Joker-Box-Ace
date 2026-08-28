@@ -18,6 +18,11 @@ async def login_page(request: Request):
     return templates.TemplateResponse(request=request, name="login.html")
 
 
+@router.get("/keys")
+async def keys_page(request: Request):
+    return templates.TemplateResponse(request=request, name="keys.html")
+
+
 @router.get("/")
 async def index(request: Request):
     return templates.TemplateResponse(

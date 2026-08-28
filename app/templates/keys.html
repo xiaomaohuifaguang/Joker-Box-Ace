@@ -1,0 +1,112 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}API-Key 管理 - Joker Box Ace{% endblock %}
+
+{% block content %}
+<div class="card bg-base-100 shadow-xl">
+    <div class="card-body">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="card-title">API-Key 管理</h2>
+            <button class="btn btn-primary btn-sm" onclick="create_modal.showModal()">+ 新建 Key</button>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="table table-zebra">
+                <thead>
+                    <tr>
+                        <th>ID</th><th>名称</th><th>Key 前缀</th><th>状态</th>
+                        <th>过期时间</th><th>最近使用</th><th>创建时间</th><th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="key-list"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 新建弹窗 -->
+<dialog id="create_modal" class="modal">
+    <div class="modal-box">
+        <h3 class="font-bold text-lg mb-4">新建 API-Key</h3>
+        <form onsubmit="return doCreate(event)">
+            <input type="text" id="key-name" class="input input-bordered w-full mb-4"
+                   placeholder="用途备注（如：给报表系统）" maxlength="64" required>
+            <div class="modal-action">
+                <button type="button" class="btn" onclick="create_modal.close()">取消</button>
+                <button type="submit" class="btn btn-primary">创建</button>
+            </div>
+        </form>
+    </div>
+</dialog>
+
+<!-- 明文展示弹窗（只出现一次） -->
+<dialog id="show_modal" class="modal">
+    <div class="modal-box">
+        <h3 class="font-bold text-lg text-warning mb-2">⚠️ 立即保存，只显示这一次</h3>
+        <p class="text-sm text-base-content/60 mb-3">关闭后将永远无法再次查看完整 key。</p>
+        <div class="join w-full">
+            <input type="text" id="new-key-value" class="input input-bordered join-item w-full font-mono" readonly>
+            <button class="btn btn-primary join-item" onclick="copyKey()">复制</button>
+        </div>
+        <div class="modal-action">
+            <button class="btn" onclick="show_modal.close()">我已保存</button>
+        </div>
+    </div>
+</dialog>
+
+<script>
+async function loadKeys() {
+    const resp = await (await fetch('/api/keys')).json();
+    const tbody = document.getElementById('key-list');
+    tbody.innerHTML = (resp.data || []).map(k => `
+        <tr>
+            <td>${k.id}</td>
+            <td>${esc(k.name)}</td>
+            <td class="font-mono">${esc(k.key_prefix)}…</td>
+            <td>${k.enabled
+                ? '<span class="badge badge-success badge-sm">启用</span>'
+                : '<span class="badge badge-ghost badge-sm">已吊销</span>'}</td>
+            <td>${fmt(k.expires_at)}</td>
+            <td>${fmt(k.last_used_at)}</td>
+            <td>${fmt(k.created_at)}</td>
+            <td>${k.enabled
+                ? `<button class="btn btn-error btn-xs" onclick="revoke(${k.id})">吊销</button>`
+                : ''}</td>
+        </tr>`).join('') || '<tr><td colspan="8" class="text-center text-base-content/50">暂无 API-Key</td></tr>';
+}
+
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt = s => s ? new Date(s).toLocaleString() : '—';
+
+async function doCreate(e) {
+    e.preventDefault();
+    const resp = await (await fetch('/api/keys', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({name: document.getElementById('key-name').value}),
+    })).json();
+    if (resp.code === 200) {
+        create_modal.close();
+        document.getElementById('key-name').value = '';
+        document.getElementById('new-key-value').value = resp.data.key;
+        show_modal.showModal();
+        loadKeys();
+    } else {
+        alert(resp.msg);
+    }
+    return false;
+}
+
+async function revoke(id) {
+    if (!confirm('吊销后使用该 key 的调用会立即失效，确认？')) return;
+    const resp = await (await fetch(`/api/keys/${id}/revoke`, {method: 'POST'})).json();
+    if (resp.code !== 200) alert(resp.msg);
+    loadKeys();
+}
+
+async function copyKey() {
+    await navigator.clipboard.writeText(document.getElementById('new-key-value').value);
+}
+
+loadKeys();
+</script>
+{% endblock %}

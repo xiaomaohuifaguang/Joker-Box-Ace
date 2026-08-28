@@ -10,7 +10,8 @@
     /login、/api/auth/login        —— 登录入口本身
 """
 import logging
-from typing import Callable
+import re
+from typing import Awaitable, Callable
 
 from fastapi import Request
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -30,9 +31,12 @@ OPEN_PATHS = {"/alive", "/favicon.ico", "/login", "/api/auth/login"}
 # 前缀匹配放行的路径
 OPEN_PREFIXES = ("/static",)
 
+# API-Key 仅对版本化业务接口生效（/api/v1/**、/api/v2/** …），管理口和页面不认
+_API_VERSIONED_PATH = re.compile(r"^/api/v\d+/")
 
-def _check_token(request: Request) -> str | None:
-    """凭证类型 1：登录 token（Cookie 或 Bearer 头）"""
+
+async def _check_token(request: Request) -> str | None:
+    """凭证类型 1：登录 token（Cookie 或 Bearer 头），所有受保护路径都认"""
     token = request.cookies.get(COOKIE_NAME)
     if not token:
         auth = request.headers.get("Authorization", "")
@@ -41,13 +45,27 @@ def _check_token(request: Request) -> str | None:
     return verify_token(token) if token else None
 
 
-# 凭证校验函数列表：每个返回用户名/标识 或 None。未来 API-Key 加在这里。
-_CREDENTIAL_CHECKERS: list[Callable[[Request], str | None]] = [_check_token]
+async def _check_api_key(request: Request) -> str | None:
+    """凭证类型 2：API-Key（X-API-Key 头），仅版本化业务接口生效"""
+    if not _API_VERSIONED_PATH.match(request.url.path):
+        return None
+    key = request.headers.get("X-API-Key")
+    if not key:
+        return None
+    from app.services.api_key import verify_key   # 延迟导入避免循环依赖
+    return await verify_key(key)
 
 
-def _resolve_identity(request: Request) -> str | None:
+# 凭证校验函数列表：每个返回身份标识 或 None。新凭证类型追加在这里。
+_CREDENTIAL_CHECKERS: list[Callable[[Request], Awaitable[str | None]]] = [
+    _check_token,
+    _check_api_key,
+]
+
+
+async def _resolve_identity(request: Request) -> str | None:
     for checker in _CREDENTIAL_CHECKERS:
-        identity = checker(request)
+        identity = await checker(request)
         if identity:
             return identity
     return None
@@ -62,7 +80,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if path in OPEN_PATHS or any(path.startswith(p) for p in OPEN_PREFIXES):
             return await call_next(request)
 
-        identity = _resolve_identity(request)
+        identity = await _resolve_identity(request)
         if identity:
             request.state.user = identity
             return await call_next(request)

@@ -6,8 +6,11 @@
 """
 from fastapi import APIRouter
 
-from app.api import auth, system
+from app.api import auth, keys, system
+from app.api.v1 import router as v1_router
 
 router = APIRouter()
 router.include_router(system.router)
 router.include_router(auth.router)
+router.include_router(keys.router)
+router.include_router(v1_router)

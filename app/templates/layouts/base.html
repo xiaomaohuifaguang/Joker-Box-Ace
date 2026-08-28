@@ -26,6 +26,7 @@
         </div>
         <div class="flex-none gap-2">
             {% block navbar_extra %}{% endblock %}
+            <a href="/keys" class="btn btn-ghost btn-sm">API-Key</a>
             <select id="theme-select" class="select select-bordered select-sm w-28"
                     onchange="document.documentElement.dataset.theme=this.value;localStorage.setItem('theme',this.value)">
                 <option value="light">🌞 light</option>

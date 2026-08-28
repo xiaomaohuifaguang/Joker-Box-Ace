@@ -53,7 +53,9 @@ FastAPI + Nacos 服务发现的微服务骨架，跨文件才能看清的设计�
 - token 签发/校验在 `app/core/security.py`；Cookie（HttpOnly）和 `Authorization: Bearer` 两种携带方式都认
 - **`AUTH_SECRET_KEY` 多机部署必须显式配置且各实例一致**，留空则每次启动随机生成（会互踢，有启动告警）
 - 无状态 token 无法主动吊销，靠 `AUTH_TOKEN_TTL` 兜底；需要"立即踢人"时再加黑名单
-- **未来 API-Key**：在 middleware.py 的 `_CREDENTIAL_CHECKERS` 列表里追加一个校验函数即可，管道和下游零改动
+- **凭证策略矩阵**（中间件强制）：`/api/v数字/**` 版本化业务接口 = 登录 token 或 `X-API-Key` 头均可；其余一切（页面、`/api/auth/**`、`/api/keys/**` 管理口）= 仅登录态。**管理口绝不能放进 /api/v数字/ 路径下**
+- **业务接口版本化**：`app/api/v1/`、`v2/`… 各自汇总路由挂 `/api/vN` 前缀；新版本复制旧目录模式，在 `api/router.py` include
+- API-Key 存储在 `cat_ace_api_keys` 表（哈希入库，明文只在创建时返回一次）；服务层在 `app/services/api_key.py`，管理页面 `/keys`
 
 ## 前端 UI
 
