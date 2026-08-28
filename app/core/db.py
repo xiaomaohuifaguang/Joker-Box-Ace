@@ -60,6 +60,7 @@ if DB_URL.startswith("sqlite"):
 async def init_db():
     """启动时调用：建表（仅 sqlite 模式自动建，远程库请用迁移工具）"""
     if DB_URL.startswith("sqlite"):
+        import app.models  # noqa: F401  确保所有表模型注册到 Base.metadata
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         logger.info("内置库就绪: %s", settings.SQLITE_PATH)
