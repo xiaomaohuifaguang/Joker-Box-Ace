@@ -26,6 +26,10 @@ class Base(DeclarativeBase):
     """所有表模型的基类"""
 
 
+# 表名统一前缀：所有模型的 __tablename__ 必须用它拼接，例: f"{TABLE_PREFIX}api_keys"
+TABLE_PREFIX = "cat_ace_"
+
+
 def build_db_url() -> str:
     """DB_URL 显式配置优先；否则按 DB_TYPE 走预设"""
     if settings.DB_URL:

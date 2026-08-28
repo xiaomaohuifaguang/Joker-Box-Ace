@@ -10,16 +10,18 @@ from datetime import datetime
 from sqlalchemy import Boolean, DateTime, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.core.db import Base
+from app.core.db import Base, TABLE_PREFIX
 
 
 class ApiKey(Base):
-    __tablename__ = "api_keys"
+    __tablename__ = f"{TABLE_PREFIX}api_keys"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(64), comment="用途备注，标识这个 key 给谁用")
-    key_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True,
-                                          comment="sha256(key)，不存明文")
+    # 唯一约束内联在建表语句里（unique=True），不要 index=True——
+    # 独立 CREATE INDEX 的 IF NOT EXISTS 是 MySQL 不支持的语法
+    key_hash: Mapped[str] = mapped_column(String(64), unique=True,
+                                          comment="sha256(key)，不存明文；唯一约束自带索引")
     key_prefix: Mapped[str] = mapped_column(String(12), comment="key 开头几位，界面上识别用")
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True,

@@ -86,8 +86,13 @@ SQLAlchemy 2.x async（`app/core/db.py`），生命周期嵌在 `lifespan()` 里
 
 **可移植性硬约束**（违反则切远程库时会炸）：
 
+- 表名必须带前缀：`__tablename__ = f"{TABLE_PREFIX}xxx"`（`TABLE_PREFIX` 在 `app/core/db.py`，当前 `cat_ace_`）
 - 模型只用通用类型（String/Integer/DateTime/Boolean/Text/JSON），禁方言特有类型
+- 唯一索引用 `unique=True` 内联在建表语句里，**不要 `index=True`**——独立 CREATE INDEX 的 IF NOT EXISTS 是 MySQL 不支持的语法
 - 禁裸 SQL 字符串，统一走 ORM/Core 表达式
 - SQLite 已开外键 PRAGMA 对齐远程行为，不要关
+- 新模型必须在 `app/models/__init__.py` 里 import，否则建表扫不到
+
+**远程库初始化**：`python gen_init_sql.py` 从模型生成 `sql/mysql_init.sql`（MySQL 方言编译，勿手改；改模型后重跑）。
 
 **切换验证**：`python db_check.py` 对当前配置的库跑全链路自检（建表/增删改查/事务回滚）。切库那天改 `.env` 后跑这个脚本，绿了才上线。远程库改表结构时引入 Alembic（现在 create_all 够用）。
