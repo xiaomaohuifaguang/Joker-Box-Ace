@@ -45,6 +45,16 @@ FastAPI + Nacos 服务发现的微服务骨架，跨文件才能看清的设计�
 - **系统路由**（`/alive`、`/favicon.ico`）→ `app/api/system.py`，路径必须保持稳定（外部监控/探针依赖），不加业务前缀
 - 路由层只收参、调 `services/`、包返回体，不写业务逻辑
 
+## 登录鉴权
+
+单账号（`AUTH_USERNAME`/`AUTH_PASSWORD` 走 `.env`），HMAC 无状态 token，**不需要 Redis**，多机实例可独立验签。
+
+- 中间件在 `app/core/middleware.py`：`/alive`、`/static`、`/login`、`/api/auth/login` 放行；未登录时**页面 302 到 /login、API 返回 401 HttpResult**
+- token 签发/校验在 `app/core/security.py`；Cookie（HttpOnly）和 `Authorization: Bearer` 两种携带方式都认
+- **`AUTH_SECRET_KEY` 多机部署必须显式配置且各实例一致**，留空则每次启动随机生成（会互踢，有启动告警）
+- 无状态 token 无法主动吊销，靠 `AUTH_TOKEN_TTL` 兜底；需要"立即踢人"时再加黑名单
+- **未来 API-Key**：在 middleware.py 的 `_CREDENTIAL_CHECKERS` 列表里追加一个校验函数即可，管道和下游零改动
+
 ## 前端 UI
 
 路线：**Jinja2 服务端渲染 + Tailwind v4 浏览器版 + daisyUI 5**，全部静态资源本地化（内网无外网，不用 CDN），不引入 Node 构建链。

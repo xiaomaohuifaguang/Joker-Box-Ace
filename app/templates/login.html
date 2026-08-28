@@ -1,0 +1,49 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}登录 - Joker Box Ace{% endblock %}
+
+{% block content %}
+<div class="flex justify-center pt-16">
+    <div class="card bg-base-100 shadow-xl w-full max-w-sm">
+        <div class="card-body">
+            <h2 class="card-title justify-center text-2xl mb-4">🃏 登录</h2>
+            <form onsubmit="return doLogin(event)">
+                <label class="input input-bordered flex items-center gap-2 mb-3">
+                    <span>👤</span>
+                    <input type="text" id="username" class="grow" placeholder="账号" required autofocus>
+                </label>
+                <label class="input input-bordered flex items-center gap-2 mb-4">
+                    <span>🔒</span>
+                    <input type="password" id="password" class="grow" placeholder="密码" required>
+                </label>
+                <p id="login-error" class="text-error text-sm mb-2 hidden"></p>
+                <button type="submit" class="btn btn-primary w-full">登 录</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+async function doLogin(e) {
+    e.preventDefault();
+    const err = document.getElementById('login-error');
+    const resp = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            username: document.getElementById('username').value,
+            password: document.getElementById('password').value,
+        }),
+    });
+    const data = await resp.json();
+    if (data.code === 200) {
+        const next = new URLSearchParams(location.search).get('next') || '/';
+        location.href = next.startsWith('/') ? next : '/';
+    } else {
+        err.textContent = data.msg || '登录失败';
+        err.classList.remove('hidden');
+    }
+    return false;
+}
+</script>
+{% endblock %}

@@ -39,6 +39,13 @@ class Settings(BaseSettings):
     NACOS_SERVICE_NAME: str = ""       # 留空时在业务侧回退到 APP_NAME
     NACOS_REGISTER_IP: str = ""        # 留空时自动探测本机局域网 IP；容器/多网卡环境必须显式指定
 
+    # ─── 登录鉴权 ───
+    AUTH_ENABLED: bool = True
+    AUTH_USERNAME: str = "admin"
+    AUTH_PASSWORD: str = ""            # 必填；空则拒绝一切登录并告警
+    AUTH_SECRET_KEY: str = ""          # 多机部署必须显式配置且各实例一致！留空则每次启动随机生成（单机调试用）
+    AUTH_TOKEN_TTL: int = 86400        # token 有效期（秒），默认 24h
+
 
 # 全局单例 —— 所有模块 import 这一个对象
 settings = Settings()

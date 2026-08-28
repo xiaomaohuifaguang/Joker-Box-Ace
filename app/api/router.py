@@ -6,7 +6,8 @@
 """
 from fastapi import APIRouter
 
-from app.api import system
+from app.api import auth, system
 
 router = APIRouter()
 router.include_router(system.router)
+router.include_router(auth.router)

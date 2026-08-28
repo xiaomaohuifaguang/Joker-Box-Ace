@@ -12,6 +12,8 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api.router import router as api_router
+from app.config import settings
+from app.core.middleware import AuthMiddleware
 from app.models.response import HttpResult
 from app.nacos_registry import lifespan
 from app.pages import router as pages_router
@@ -22,7 +24,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+if settings.AUTH_ENABLED and not settings.AUTH_PASSWORD:
+    logger.warning("⚠️ AUTH_ENABLED=true 但 AUTH_PASSWORD 为空，所有登录都会被拒绝！")
+
 app = FastAPI(title="Joker Box Ace", lifespan=lifespan)
+
+# 鉴权中间件：/alive、/static、/login 放行；未登录时页面 302、API 401
+app.add_middleware(AuthMiddleware)
 
 # 静态资源（tailwind/daisyui 等全部本地化，内网无外网也能跑）
 app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
