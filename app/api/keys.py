@@ -3,12 +3,12 @@
 安全边界：本模块在 /api/keys 下，不属于 /api/v数字/** 版本化路径，
 因此中间件只认登录 token，API-Key 无法调用管理口（设计如此，勿改路径）。
 """
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
-from app.models.api_key import utcnow
+from app.models.api_key import localnow
 from app.models.response import HttpResult
 from app.services import api_key as svc
 
@@ -22,8 +22,8 @@ class CreateKeyIn(BaseModel):
 
 
 def _iso(dt) -> str | None:
-    """库里存的是 UTC naive，出参带 +00:00 标记，前端 new Date() 会自动转本地"""
-    return dt.replace(tzinfo=timezone.utc).isoformat() if dt else None
+    """库存本地时间无时区标记，前端 new Date() 按本地解析正好正确"""
+    return dt.isoformat() if dt else None
 
 
 def _to_dict(k) -> dict:
@@ -44,7 +44,7 @@ async def create(body: CreateKeyIn):
     """创建 key"""
     expires_at = None
     if body.expires_in_days:
-        expires_at = utcnow() + timedelta(days=body.expires_in_days)
+        expires_at = localnow() + timedelta(days=body.expires_in_days)
     record = await svc.create_key(body.name, body.description, expires_at)
     return HttpResult.ok(_to_dict(record), "创建成功")
 

@@ -2,11 +2,12 @@
 
 设计要点：
 - key_value 存明文支持界面回显（内网单账号工具的取舍）；key_hash 用于校验时快速索引
-- 时间戳一律应用侧生成 UTC 时间（不依赖数据库时区，换库零差异）；
-  出参时带 +00:00 标记，前端 new Date() 会自动转本地显示
+- 时间戳一律应用侧生成本地时间（不依赖数据库时区，换库零差异）；
+  无时区标记，前端 new Date() 按本地解析正好正确显示
+- 注意：部署到 Docker 容器时必须设 TZ=Asia/Shanghai（容器默认 UTC）
 - 只用通用类型，保证未来切 MySQL/PG 零改动（见 CLAUDE.md 可移植性约束）
 """
-from datetime import datetime, timezone
+from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, String
 from sqlalchemy.orm import Mapped, mapped_column
@@ -14,9 +15,9 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.core.db import Base, TABLE_PREFIX
 
 
-def utcnow() -> datetime:
-    """UTC 当前时间（naive，入库用；全项目时间戳统一走这个）"""
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+def localnow() -> datetime:
+    """本地当前时间（naive，入库用；全项目时间戳统一走这个）"""
+    return datetime.now()
 
 
 class ApiKey(Base):
@@ -35,4 +36,4 @@ class ApiKey(Base):
     expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True,
                                                         comment="留空 = 永不过期")
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=localnow)
