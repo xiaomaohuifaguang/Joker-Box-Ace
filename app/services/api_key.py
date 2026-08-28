@@ -10,7 +10,7 @@ from datetime import datetime
 from sqlalchemy import select
 
 from app.core.db import SessionLocal
-from app.models.api_key import ApiKey
+from app.models.api_key import ApiKey, utcnow
 
 KEY_PREFIX = "jba-"       # 一眼认出是本系统的 key
 
@@ -42,9 +42,9 @@ async def verify_key(key: str) -> str | None:
         )).scalar_one_or_none()
         if row is None:
             return None
-        if row.expires_at is not None and row.expires_at < datetime.now():
+        if row.expires_at is not None and row.expires_at < utcnow():
             return None
-        row.last_used_at = datetime.now()
+        row.last_used_at = utcnow()
         await session.commit()
         return row.name
 

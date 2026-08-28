@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS cat_ace_api_keys (
 	enabled BOOL NOT NULL, 
 	expires_at DATETIME COMMENT '留空 = 永不过期', 
 	last_used_at DATETIME, 
-	created_at DATETIME NOT NULL DEFAULT now(), 
+	created_at DATETIME NOT NULL, 
 	PRIMARY KEY (id), 
 	UNIQUE (key_hash)
 );

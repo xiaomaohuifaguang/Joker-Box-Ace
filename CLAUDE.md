@@ -93,6 +93,7 @@ SQLAlchemy 2.x async（`app/core/db.py`），生命周期嵌在 `lifespan()` 里
 - 唯一索引用 `unique=True` 内联在建表语句里，**不要 `index=True`**——独立 CREATE INDEX 的 IF NOT EXISTS 是 MySQL 不支持的语法
 - 禁裸 SQL 字符串，统一走 ORM/Core 表达式
 - SQLite 已开外键 PRAGMA 对齐远程行为，不要关
+- **时间戳一律应用侧生成 UTC**（`app/models/api_key.py` 的 `utcnow()`），不要用 `server_default=func.now()`（SQLite 是 UTC、MySQL 是服务器时区，行为不一致）；出参带 `+00:00` 标记，前端 `new Date()` 自动转本地
 - 新模型必须在 `app/models/__init__.py` 里 import，否则建表扫不到
 
 **远程库初始化**：`python gen_init_sql.py` 从模型生成 `sql/mysql_init.sql`（MySQL 方言编译，勿手改；改模型后重跑）。
