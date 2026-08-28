@@ -59,11 +59,20 @@ async def list_keys() -> list[ApiKey]:
 
 async def revoke_key(key_id: int) -> bool:
     """吊销（软删除：置 enabled=False，保留审计痕迹）"""
+    return await _set_enabled(key_id, False)
+
+
+async def enable_key(key_id: int) -> bool:
+    """重新启用已吊销的 key"""
+    return await _set_enabled(key_id, True)
+
+
+async def _set_enabled(key_id: int, enabled: bool) -> bool:
     async with SessionLocal() as session:
         row = await session.get(ApiKey, key_id)
         if row is None:
             return False
-        row.enabled = False
+        row.enabled = enabled
         await session.commit()
         return True
 

@@ -57,6 +57,14 @@ async def revoke(key_id: int):
     return HttpResult.fail(code=404, msg="key 不存在")
 
 
+@router.post("/{key_id}/enable")
+async def enable(key_id: int):
+    """重新启用已吊销的 key"""
+    if await svc.enable_key(key_id):
+        return HttpResult.ok(None, "已启用")
+    return HttpResult.fail(code=404, msg="key 不存在")
+
+
 @router.delete("/{key_id}")
 async def delete(key_id: int):
     """删除：彻底移除记录"""

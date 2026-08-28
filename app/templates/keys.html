@@ -76,7 +76,9 @@ async function loadKeys() {
             <td>${fmt(k.last_used_at)}</td>
             <td>${fmt(k.created_at)}</td>
             <td class="whitespace-nowrap">
-                ${k.enabled ? `<button class="btn btn-warning btn-xs" onclick="revoke(${k.id})">吊销</button>` : ''}
+                ${k.enabled
+                    ? `<button class="btn btn-warning btn-xs" onclick="revoke(${k.id})">吊销</button>`
+                    : `<button class="btn btn-success btn-xs" onclick="enable(${k.id})">启用</button>`}
                 <button class="btn btn-error btn-xs" onclick="del(${k.id}, '${esc(k.name)}')">删除</button>
             </td>
         </tr>`).join('') || '<tr><td colspan="9" class="text-center text-base-content/50">暂无 API-Key</td></tr>';
@@ -109,8 +111,14 @@ async function doCreate(e) {
 }
 
 async function revoke(id) {
-    if (!confirm('吊销后使用该 key 的调用会立即失效（记录保留），确认？')) return;
+    if (!confirm('吊销后使用该 key 的调用会立即失效（记录保留，可随时启用），确认？')) return;
     const resp = await (await fetch(`/api/keys/${id}/revoke`, {method: 'POST'})).json();
+    if (resp.code !== 200) alert(resp.msg);
+    loadKeys();
+}
+
+async function enable(id) {
+    const resp = await (await fetch(`/api/keys/${id}/enable`, {method: 'POST'})).json();
     if (resp.code !== 200) alert(resp.msg);
     loadKeys();
 }
