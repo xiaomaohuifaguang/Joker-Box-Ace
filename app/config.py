@@ -46,6 +46,13 @@ class Settings(BaseSettings):
     AUTH_SECRET_KEY: str = ""          # 多机部署必须显式配置且各实例一致！留空则每次启动随机生成（单机调试用）
     AUTH_TOKEN_TTL: int = 86400        # token 有效期（秒），默认 24h
 
+    # ─── 数据库 ───
+    # DB_URL 显式配置时优先生效（任何 SQLAlchemy 支持的库都能接，是切库的逃生门）；
+    # 否则按 DB_TYPE 走预设。
+    DB_TYPE: str = "sqlite"            # sqlite=内置库；mysql/postgresql 等=远程库（需配 DB_URL）
+    SQLITE_PATH: str = "./data/app.db" # 内置库文件位置（相对项目根目录）
+    DB_URL: str = ""                   # 例: mysql+aiomysql://user:pass@host:3306/dbname
+
 
 # 全局单例 —— 所有模块 import 这一个对象
 settings = Settings()

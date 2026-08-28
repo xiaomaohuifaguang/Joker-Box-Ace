@@ -75,3 +75,19 @@ FastAPI + Nacos 服务发现的微服务骨架，跨文件才能看清的设计�
 - `alibabacloud-*` 系列依赖只有 sdist，必须先 `pip wheel` 转 wheel 才能 `--no-index` 离线安装
 - 安装用 `--no-hashes` 的 requirements（自建 wheel 与 sdist 哈希对不上）；完整性由 wheel 构建期的 hash 校验保证
 - 启动脚本统一跑 `run.py`，端口只认 `.env`；Linux 包基于 Debian 12 运行时，目标机需兼容的 glibc
+
+## 数据库
+
+SQLAlchemy 2.x async（`app/core/db.py`），生命周期嵌在 `lifespan()` 里。**内置/远程切换只换连接 URL，业务代码不动**：
+
+- `DB_URL` 显式配置 → 最高优先级直接生效（切任何库的逃生门）
+- `DB_TYPE=sqlite` → 内置库，位置由 `SQLITE_PATH` 指定（默认 `./data/app.db`，已 gitignore）
+- `DB_TYPE=其他` → 必须配 `DB_URL`（如 `mysql+aiomysql://user:pass@host/db`），同时记得 `uv add` 对应异步驱动并重建离线包
+
+**可移植性硬约束**（违反则切远程库时会炸）：
+
+- 模型只用通用类型（String/Integer/DateTime/Boolean/Text/JSON），禁方言特有类型
+- 禁裸 SQL 字符串，统一走 ORM/Core 表达式
+- SQLite 已开外键 PRAGMA 对齐远程行为，不要关
+
+**切换验证**：`python db_check.py` 对当前配置的库跑全链路自检（建表/增删改查/事务回滚）。切库那天改 `.env` 后跑这个脚本，绿了才上线。远程库改表结构时引入 Alembic（现在 create_all 够用）。

@@ -111,9 +111,15 @@ async def register_to_nacos(app: FastAPI):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """总入口：按开关组合多个生命周期任务（以后加数据库等就在这里嵌套）"""
-    if settings.NACOS_ENABLED:
-        async with register_to_nacos(app):
+    """总入口：按开关组合多个生命周期任务（以后加缓存等就在这里嵌套）"""
+    from app.core.db import close_db, init_db
+
+    await init_db()
+    try:
+        if settings.NACOS_ENABLED:
+            async with register_to_nacos(app):
+                yield
+        else:
             yield
-    else:
-        yield
+    finally:
+        await close_db()
